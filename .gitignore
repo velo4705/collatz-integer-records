@@ -1,0 +1,14 @@
+# Large binary array dumps (regenerate with the sweep)
+*.bin
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Large pickle caches
+*.pkl
+
+# Agent/harness state (not research content)
+.opencode/
+.openresearch/
+opencode.json

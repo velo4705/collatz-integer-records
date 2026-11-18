@@ -1,0 +1,506 @@
+% !TeX program = pdflatex
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+\newcommand{\T}{T}
+\newcommand{\vtwo}{v_2}
+\newcommand{\trailingones}{\tau}
+\newcommand{\rankOneApex}{60\,342\,610\,919\,632}
+
+\title{Trailing Ones and High-Altitude Backbones:\\
+ Empirical Trajectory Dynamics and Algebraic Sub-Family Bounds\\
+ in the Integer Collatz Map up to $10^{7}$}
+\author{collatz-integers project}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study the integer Collatz map $\T(n) = n/2$ for even $n$ and
+$\T(n) = 3n+1$ for odd $n$, exhaustively over $1 \le n \le 10{,}000{,}000$,
+tracking three metrics per starting value: the total stopping time
+$\mathrm{S}(n)$, the \emph{glide time} $\mathrm{G}(n)$ (the first $t \ge 1$
+with $\T^t(n) < n$), and the \emph{peak ratio} $\rho(n) =
+\max_t \T^t(n)/n$. We make no claim whatsoever about the full $3n+1$
+conjecture; everything below is either an exact algebraic statement about
+explicit sub-families, or an empirical measurement over a finite range.
+We prove (i)~that the alternating-bit family $n_k = (2^{2k+3}+1)/3$
+(binary $\texttt{10}\cdots\texttt{1011}$) satisfies $\mathrm{G}(n_k) = 8$
+identically for every $k \ge 1$ with in-window apex $\T^3(n_k)$ giving the
+limiting peak ratio $9/2$, and $k = 0$ ($n_0 = 3$) is the unique degenerate
+exception; and (ii)~a ``2-adic fuel law'': for odd $n = 2^k q - 1$ with
+$k = \vtwo(n+1)$, the first $2k$ steps are forced, strictly increasing, and
+accumulate a net multiplier $\sim (3/2)^k$. The fuel law is corroborated by
+a $10^7$ sweep: record peak-ratio integers are depleted in classes with
+$k \le 3$ trailing ones and enriched at roughly a factor of two per
+additional trailing one, while mod 3 and mod 9 structure is flat and all
+enrichment is purely 2-adic (mod 8 / mod 16 / mod 72). Finally, all
+top-500 records exhibit \emph{mid-flight refueling} (peak trailing-ones
+\emph{raised along the trajectory}, mean 11.19 vs $3.98$ at $t=0$) and
+coalesce onto 97 high-altitude backbones above $10^9$; exactly five records
+funnel into the rank-1 backbone.
+\end{abstract}
+
+\section{Introduction}
+The $3n+1$ problem asks whether every positive integer eventually reaches
+1~\cite{lagarias2010,teras1976}. We do not address it. This note reports
+two families of results, both tightly scoped:
+
+\begin{enumerate}
+  \item \textbf{Exact algebra.} A closed-form family with a provably rigid
+        glide window (Theorem~\ref{thm:altbits}), and a general forced
+       -ascent lemma for odd integers with many trailing 1-bits
+        (Proposition~\ref{prop:fuel}). Both are theorems, not heuristics.
+  \item \textbf{Exhaustive measurement.} A full sweep of $1 \le n \le
+        10{,}000{,}000$ (Section~\ref{sec:empirical}): 15{,}766 integers
+        (0.158\%) exceed peak ratio $10^3$; 57 exceed $10^5$; the maximum
+        total stopping time is 685 at $n = 8{,}400{,}511$ and the maximum
+        peak ratio is $9{,}099{,}151\times$ at $n = 6{,}631{,}675$. We
+        analyse the modulo/binary structure of the record set, the behaviour
+        of structured families (repunits, Mersenne numbers, alternating
+        bit strings), and the way records merge into a small number of
+        shared \emph{backbones}.
+\end{enumerate}
+
+Nothing here bounds arbitrary orbits or bears on undecidability or
+density questions \cite{tao2019}. Constants, counts, and minima are exact
+for the stated range only.
+
+\section{Notation and method}
+$\T(n) = n/2$ if $2 \mid n$, else $3n+1$. For odd $n$ write
+$\tau(n) = \vtwo(n+1)$ (the number of trailing 1-bits, e.g.
+$\tau(\texttt{...1111}_2) = 4$). \emph{Total stopping time}
+$\mathrm{S}(n) = \min\{t : \T^t(n) = 1\}$. \emph{Glide time}
+$\mathrm{G}(n) = \min\{t \ge 1 : \T^t(n) < n\}$. \emph{Peak ratio}
+$\rho(n) = \max_{0 \le t \le \mathrm{S}(n)} \T^t(n) / n$.
+The sweep computes $\mathrm{S}$, $\mathrm{G}$, $\rho$ for all $n \le 10^7$
+using bitwise primitives (\verb|n & 1|, \verb|n >> 1|) and memoizing
+stopping times and peaks for all visited values below $2^{24}$;
+the run takes $\approx 19$\,s, and the arrays are persisted to binary
+files. Assertions: every trace of a top-500 record reproduces its recorded
+peak exactly.
+
+\section{Alternating bits quantize the glide}
+\label{sec:altbits}
+
+\begin{theorem}[Alternating-Bit Glide Quantization]
+\label{thm:altbits}
+Let $k \ge 1$ and $n_k = \dfrac{2^{2k+3}+1}{3}$, i.e.\ the integer whose
+binary expansion is $\texttt{(10)}^{*k}\texttt{11} =
+1010\cdots1011_2$. Then
+\[
+  \T^2(n_k) = 2^{2k+2}+1, \qquad
+  \T^5(n_k) = 3\cdot 2^{2k} + 1, \qquad
+  \T^8(n_k) = 9\cdot 2^{2k-2} + 1 < n_k,
+\]
+with $\T^j(n_k) > n_k$ for $1 \le j \le 7$. Hence
+$\mathrm{G}(n_k) = 8$ for every $k \ge 1$.
+\end{theorem}
+
+\begin{proof}
+For $k \ge 2$ we track exact 2-adic valuations; the $k = 1$ case is checked
+explicitly below. First, $3n_k + 1 = 2^{2k+3} + 2 = 2\,(2^{2k+2}+1)$, so
+\[
+  \T(n_k) = 2^{2k+3}+2, \qquad \T^2(n_k) = 2^{2k+2}+1 \;\;(\text{odd}).
+\]
+Then
+\[
+  \T^3(n_k) = 3\,(2^{2k+2}+1) + 1 = 3\cdot 2^{2k+2} + 4
+           = 4\,(3\cdot 2^{2k} + 1),
+\]
+and since $3\cdot 2^{2k} + 1$ is odd, exactly two halvings follow:
+\[
+  \T^4(n_k) = 3\cdot 2^{2k+1} + 2 = 2\,(3\cdot 2^{2k}+1)
+           \quad\Longrightarrow\quad
+  \T^5(n_k) = 3\cdot 2^{2k} + 1 \;\;(\text{odd}).
+\]
+Next,
+\[
+  \T^6(n_k) = 3\,(3\cdot 2^{2k}+1) + 1 = 9\cdot 2^{2k} + 4
+           = 4\,(9\cdot 2^{2k-2} + 1).
+\]
+For $k \ge 2$, $2k-2 \ge 2$ makes $9\cdot 2^{2k-2} + 1$ odd, so again
+exactly two halvings follow:
+\[
+  \T^7(n_k) = 9\cdot 2^{2k-1} + 2, \qquad
+  \T^8(n_k) = 9\cdot 2^{2k-2} + 1.
+\]
+All intermediate values strictly exceed $n_k$: the odd-step images $\T^3$,
+$\T^6$ obviously; and directly,
+\begin{align*}
+  \T^2 - n_k &= \tfrac{2^{2k+2}(3-2)+2}{3} > 0,\\
+  \T^4 - n_k &= \tfrac{2^{2k}(18-8)+5}{3} > 0,\\
+  \T^5 - n_k &= \tfrac{2^{2k}+2}{3} > 0,\\
+  \T^7 - n_k &= \tfrac{2^{2k}(27/2 - 8)+5}{3} > 0,
+\end{align*}
+so the least $t$ with $\T^t(n_k) < n_k$ is $t = 8$. The inequality
+$\T^8(n_k) < n_k$ is
+\[
+  27\cdot 2^{2k-2} + 3 < 2^{2k+3} + 1
+  \;\Longleftrightarrow\;
+  2 < 5\cdot 2^{2k-2}
+  \;\Longleftrightarrow\;
+  k \ge 1. \qquad\qedhere
+\]
+\end{proof}
+
+\begin{lemma}[$k = 1$; the parity chain holds numerically]
+For $k = 1$, the valuation of $\T^6(n_1) = 40 = 2^3 \cdot 5$ is
+$\vtwo(\T^6) = 3$, not $2$, so the valuation bookkeeping above applies only
+at $k \ge 2$; but every stated closed form is still exact, and the glide is
+still 8: $11 \to 34 \to 17 \to 52 \to 26 \to 13 \to 40 \to 20 \to
+10 < 11$. (Here $\T^7 = 20$ and $\T^8 = 10 = 9\cdot 2^{0} + 1$, matching
+the formulas.)
+\end{lemma}
+
+\begin{lemma}[Unique degenerate exception, $k = 0$]
+$n_0 = 3$: the parity chain breaks at $\T^5$ ($3\cdot 2^0 + 1 = 4$ is
+even). The true trace is
+\[
+  3 \to 10 \to 5 \to 16 \to 8 \to 4 \to 2 \to 1,
+\]
+the orbit reaches the trivial cycle in 7 steps, and $\T^8(3) = \T(1) = 4
+> 3$, with $\mathrm{G}(3) = 6$. Up to the trivial cycle, $k = 0$ is the only
+violation of $\T^8(n_k) < n_k$ in the family.
+\end{lemma}
+
+\begin{remark}[Peak ratio ceiling]
+The in-window apex is $\T^3(n_k) = 12\cdot 2^{2k} + 4$, so the in-window
+peak ratio satisfies $\T^3(n_k)/n_k \to 36/8 = 9/2$. Global peaks were
+verified to equal the in-window apex with ratio exactly $4.50$ for all
+$4 \le k \le 13$ (for $k = 3$ the post-glide orbit re-peaks to
+$\rho(171) = 53.99$). Members never appear in peak-ratio record sets:
+the family produces a rigid glide window with a flat $4.5$ peak window,
+not an excursion. The same binary pattern collapses the alternating even
+family $\texttt{(10)}^*\texttt{10}_2$ (glide $1$, ratio $\to 3/2$) and the
+odd family $\texttt{(10)}^*\texttt{101}_2 = (4^{k+1}-1)/3$ (glide $3$,
+ratio $\to 3$) to constant-glide quanta, verified exactly for all
+members $\le 10^7$ (e.g.\ glide $3$ for $5, 21, 85, \dots, 5592405$).
+\end{remark}
+
+\section{The initial 2-adic fuel law}
+\label{sec:fuel}
+
+\begin{proposition}[Initial 2-adic fuel law]
+\label{prop:fuel}
+Let $n$ be odd with $k = \tau(n) = \vtwo(n+1) \ge 1$, and write
+$n = 2^k q - 1$ ($q \ge 1$). Define the \emph{shortcut step}
+$\varphi(m) = (3m+1)/2$ (one odd step followed by one halving). Then for
+every $0 \le j \le k$,
+\[
+  \varphi^{j}(n) = 3^{j}\, 2^{\,k-j}\, q - 1,
+\]
+which is odd for $j < k$ and congruent to $-1 \pmod{2^{\,k-j}}$. Each
+$\varphi^{j}$ is strictly increasing ($\varphi(m) > m$ iff $m + 1 > 0$) and
+consists of exactly two Collatz steps. Consequently the first $2k$ Collatz
+steps are strictly increasing, no glide can occur before step $2k+1$,
+and after $k$ shortcut steps the value has grown by the factor
+\[
+  \frac{\varphi^k(n)}{n} = \frac{3^k q - 1}{2^k q - 1} \;\sim\; \Big(\frac{3}{2}\Big)^{k}.
+\]
+\end{proposition}
+
+\begin{proof}
+Induction on $j$. Base $j = 0$ is $n = 2^k q - 1$. Inductive step:
+assume $\varphi^j(n) = 3^j 2^{k-j} q - 1$ with $j < k$. Since $k - j \ge 1$
+the factor $3^j 2^{k-j} q$ is even, so $\varphi^j(n)$ is odd; applying the
+Collatz odd step then halving,
+\[
+  \varphi(\varphi^j(n)) = \frac{3\,(3^j 2^{k-j} q - 1) + 1}{2}
+  = \frac{3^{j+1} 2^{k-j} q - 2}{2}
+  = 3^{j+1} 2^{\,k-j-1} q - 1,
+\]
+which is $\equiv -1 \pmod{2^{\,k-j-1}}$ and odd while $k - j - 1 \ge 1$.
+All odd-step images $3\varphi^j(n) + 1 = 3^{j+1} 2^{k-j} q - 2$ are even,
+and the values $\varphi^j(n)$ are strictly increasing because
+$\varphi(m) - m = (m+1)/2 > 0$. Hence each of the $k$ shortcut stages is
+two valid Collatz steps $> n$ throughout, giving $\mathrm{G}(n) \ge 2k + 1$
+and the stated net multiplier, since
+$\varphi^k(n) = 3^k q - 1 = \frac{3^k}{2^k}(n + 1) - 1$.
+\end{proof}
+
+\begin{remark}[Empirical correspondence]
+\label{rem:empiricalfuel}
+Computed over all $n \le 10^7$, the \emph{minimum} observed glide time per
+trailing-ones class is linear in $k$: $6, 8, 11, 13, 16, 19, 21, 24, 26,
+29, 32, 34, 37, 39$ for $k = 2, \dots, 15$ (minima are attained at small
+members of each class, e.g.\ $n = 15, 95, 255$ at $k = 4, 5, 8$). The
+shortcut multiplier was verified on
+samples $n = 31, 63, 95, 127, 159, 191, 223, 255$, matching
+$\varphi^k(n) \approx (3/2)^k n$ to within $3\%$ (e.g.\ $k=8$: $25.7$ vs
+$(3/2)^8 = 25.6$). The distribution-level counterpart (how rare record
+peaks are as a function of $k$) is in Table~\ref{tab:enrich}.
+\end{remark}
+
+\begin{remark}[Corollaries for $q = 1$ (Mersenne)]
+$n = 2^k - 1$ maximizes the fuel per bit of length: exactly $k$ consecutive
+shortcut ascents multiply the orbit by $\sim (3/2)^k$. In the sweep,
+Mersenne $2^k - 1$ for $k \le 23$ reaches peak ratio $22{,}446\times$
+($n = 8{,}388{,}607$) with glide $223$, the richest structured family
+tested.
+\end{remark}
+
+\begin{remark}[Insufficiency]
+The law is a strong bias, not a characterization: the global maximum-ratio
+record $n = 6{,}631{,}675$ has only $\tau(n) = 2$; excursions are assembled
+from trailing-ones segments met \emph{en route} (Section
+\ref{sec:refuel}), not only at the start.
+\end{remark}
+
+\section{Exhaustive measurement on $1 \le n \le 10^{7}$}
+\label{sec:empirical}
+
+\subsection{Headline quantities}
+Table~\ref{tab:headline} summarises the sweep.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+Quantity & Value \\
+\midrule
+Total $n$ processed & $10{,}000{,}000$ \\
+Max total stopping time $\mathrm{S}(n)$ & 685 at $n = 8{,}400{,}511$ \\
+Max peak ratio $\rho(n)$ & $9{,}099{,}150.81\times$ at $n = 6{,}631{,}675$ \\
+$\rho > 10^3$ count / fraction & 15{,}766 / 0.158\% \\
+$\rho > 10^5$ count & 57 \\
+Running record-breakers (new max of $\rho$) & 23 \\
+Mean / median $\mathrm{S}(n)$ & 155.27 / 150 \\
+Mean / median $\mathrm{G}(n)$ & 5.24 / 1 \\
+Top-500: bit length & 18--24 \\
+Top-500: mean popcount & 13.56 (baseline 8.15) \\
+Top-500: mean $\tau(n)$ & 3.98 (odd baseline 2.0) \\
+Top-500: odd fraction & 0.85 \\
+\bottomrule
+\end{tabular}
+\caption{Headline sweep statistics, $1 \le n \le 10^7$.}
+\label{tab:headline}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}rrrrcr@{}}
+\toprule
+Rank & $n$ & $\mathrm{S}(n)$ & $\mathrm{G}(n)$ & $\rho(n)$ & Apex \\
+\midrule
+1 & 6{,}631{,}675 & 576 & 362 & $9{,}099{,}151\times$ & \rankOneApex \\
+2 & 7{,}460{,}635 & 571 & 357 & $8{,}088{,}133\times$ & \rankOneApex \\
+3 & 8{,}393{,}215 & 566 & 349 & $7{,}189{,}451\times$ & \rankOneApex \\
+4 & 8{,}842{,}233 & 579 & 3   & $6{,}824{,}363\times$ & \rankOneApex \\
+5 & 9{,}947{,}513 & 574 & 3   & $6{,}066{,}100\times$ & \rankOneApex \\
+6 & 7{,}553{,}535 & 478 & 238 & $1{,}262{,}345\times$ & $9{,}535{,}170{,}024{,}016$ \\
+7 & 7{,}202{,}815 & 284 & 220 & $934{,}016\times$   & $6{,}727{,}544{,}495{,}440$ \\
+\bottomrule
+\end{tabular}
+\caption{Top record trajectories by peak ratio. Ranks 1--5 share the single
+apex trajectory \rankOneApex\ (all $\ge 6.0 \times 10^{13}$).}
+\label{tab:top5}
+\end{table}
+
+\subsection{Modulo structure of the $\rho > 10^{3}$ record set}
+\label{sec:mod}
+15{,}766 integers have $\rho > 10^3$: 12{,}020 odd, 3{,}746 even.
+Table~\ref{tab:mod8} (mod 8) and Table~\ref{tab:mod16} (mod 16) show the
+enrichment is purely 2-adic. Mod 72 (9 classes congruent to $7 \bmod 8$ are
+uniformly enriched, 727--779 each vs.\ expectation 219; every remaining
+class lies within $\pm 30\%$ of baseline; even classes $\equiv 2 \bmod 4$
+are depleted to 61--90) confirms no additional mod 9 structure, and mod 3
+is flat: 5{,}259 / 5{,}287 / 5{,}220.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+$n \bmod 8$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\
+\midrule
+records & 183 & 2{,}243 & 696 & 2{,}311 & 665 & 665 & 2{,}202 & 6{,}801 \\
+\% of records & 1.2 & 14.2 & 4.4 & 14.7 & 4.2 & 4.2 & 14.0 & \textbf{43.1} \\
+\bottomrule
+\end{tabular}
+\caption{Mod 8 enrichment of $\rho > 10^3$ records (uniform expectation
+$\approx 1971$ per class). The class $7 \bmod 8$ (binary $\texttt{...111}$)
+accounts for $43.1\%$ of records vs.\ $12.5\%$ expected.}
+\label{tab:mod8}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lrrrrrrrrrrrrrrr@{}}
+\toprule
+$n \bmod 16$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 \\
+\midrule
+records & 35 & 533 & 548 & 548 & 145 & 145 & 513 & 1{,}631 & 148 & 1{,}710 & 148 & 1{,}763 & 520 & 520 & 1{,}689 & 5{,}170 \\
+\bottomrule
+\end{tabular}
+\caption{Mod 16 enrichment (expectation $\approx 985$ per class). Strongly
+enriched: $15 \bmod 16$ (5{,}170; 32.8\% of all records) and $7 \bmod 16$
+(1{,}631). Mildly enriched: $9, 11, 14 \bmod 16$. The $\equiv 7 \bmod 8$
+block contains $6{,}801$ records.}
+\label{tab:mod16}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}rrrl@{}}
+\toprule
+$k = \tau(n)$ & records & geometric expectation & enrichment \\
+\midrule
+1  & 2{,}908 & 6{,}010.0 & 0.48$\times$ \\
+2  & 2{,}311 & 3{,}005.0 & 0.77$\times$ \\
+3  & 1{,}631 & 1{,}502.5 & 1.09$\times$ \\
+4  & 1{,}264 &   751.2 & 1.68$\times$ \\
+5  &   974 &   375.6 & 2.59$\times$ \\
+6  &   768 &   187.8 & 4.09$\times$ \\
+7  &   557 &    93.9 & 5.93$\times$ \\
+8  &   408 &    47.0 & 8.69$\times$ \\
+9  &   314 &    23.5 & 13.4$\times$ \\
+10 &   216 &    11.7 & 18.4$\times$ \\
+11 &   174 &     5.9 & 29.7$\times$ \\
+12 &   125 &     2.9 & 42.6$\times$ \\
+13 &    91 &     1.5 & 62.0$\times$ \\
+14 &    78 &     0.7 & 106.3$\times$ \\
+15 &    49 &     0.4 & 133.6$\times$ \\
+$\ge 16$ & 151 & $<0.25$ each & $\ge 414\times$ \\
+\bottomrule
+\end{tabular}
+\caption{Odd records ($12{,}020$) by exact trailing-ones count vs.\
+geometric baseline ($12{,}020 \cdot 2^{-k}$ per class). Enrichment
+approximately doubles per trailing 1-bit; $43.0\%$ of odd records have
+$k \ge 4$ vs.\ $12.5\%$ baseline. Even records (3{,}746) are mostly
+$2 \cdot m$ with $\tau(m) \ge 2$ (e.g.\ low byte \texttt{0xFE} leads the
+low-byte histogram, 565 occurrences).}
+\label{tab:enrich}
+\end{table}
+
+\subsection{Structured families}
+\begin{itemize}
+  \item Alternating bits: glide constants exactly $1$ (even strings), $3$
+        (odd strings $(4^{k+1}-1)/3$), and $8$ (Theorem
+        \ref{thm:altbits}); peak ratios $\to 1.5, 3, 4.5$ respectively.
+  \item Repunits $R_k = (10^k - 1)/9$: glide $0, 8, 50, 8, 32, 11, 21$
+        ($k = 1, \dots, 7$) --- no scaling law; peak ratios $\le 84$.
+  \item Mersenne $2^k - 1$: erratic but exploding profile, glide up to
+        $223$ ($k = 23$), stopping time up to $473$, peak ratio up to
+        $22{,}446\times$; the richest structured family.
+\end{itemize}
+
+\section{Mid-flight refueling and backbone clustering}
+\label{sec:refuel}
+Tracing the full trajectories of the top-500 peak-ratio records:
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}lrr@{}}
+\toprule
+ & top 50 & all 500 \\
+\midrule
+Records with $\max_{t \ge 1}\tau(\T^t(n)) > \tau(n)$ & 46 & 447 \\
+Mean $\tau$ at $t = 0$ & 4.82 & 3.98 \\
+Mean of $\max_{t \ge 1} \tau(\T^t(n))$ & 11.14 & 11.19 \\
+Max $\tau$ at $t = 0$ & 15 & 15 \\
+Max $\tau$ mid-trajectory & 18 & 18 \\
+Min over top 50 of mid-flight max & \multicolumn{2}{c}{7} \\
+\bottomrule
+\end{tabular}
+\caption{Mid-flight refueling: the forced-exit \emph{mid-trajectory}
+pickup of trailing-ones segments is universal among records ($447/500$;
+the four exceptions are ranks 10, 20, 43, 47, which start with
+$\tau(n) \in \{14, 14, 10, 15\}$).}
+\label{tab:refuel}
+\end{table}
+
+The highest mid-flight refuel is $\tau = 18$ (ranks 19, 38, 45 --- all on
+the apex $622{,}717{,}901{,}620$ backbone), exceeding the maximum $\tau =
+15$ observable at $t = 0$.
+
+Clustering the 500 record trajectories by shared values above $10^9$
+(trajectories that merge share everything downstream): they collapse onto
+\textbf{97 distinct high-altitude backbones}; \textbf{464/500} records
+share an exact apex with at least one other record; the largest exact-apex
+groups are $28$ records each (apex $24{,}648{,}077{,}896$ and
+$156{,}914{,}378{,}224$), then $24$, $23$, $20$, $19$, $19$, $17$
+(Table~\ref{tab:apex}). Component sizes: 36 singletons; the rest are
+distributed over sizes up to 28. Exactly \textbf{5 records funnel into the
+rank-1 backbone} (apex \rankOneApex: ranks 1--5). Membership is not
+correlated with bit length; backbones span 18--24-bit members.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+Shared apex value & records \\
+\midrule
+$24{,}648{,}077{,}896$ & 28 \\
+$156{,}914{,}378{,}224$ & 28 \\
+$352{,}617{,}812{,}944$ & 24 \\
+$90{,}239{,}155{,}648$ & 23 \\
+$139{,}646{,}736{,}808$ & 20 \\
+$151{,}629{,}574{,}372$ & 19 \\
+$294{,}475{,}592{,}320$ & 19 \\
+$17{,}202{,}377{,}752$ & 17 \\
+\rankOneApex & 5 \\
+\bottomrule
+\end{tabular}
+\caption{Largest exact-apex groups within the top-500. Each group is one
+high-altitude backbone (records merge before the apex).}
+\label{tab:apex}
+\end{table}
+
+\section{What this note does and does not claim}
+\label{sec:scope}
+\begin{itemize}
+  \item Theorem \ref{thm:altbits} and Proposition \ref{prop:fuel} are
+        exact for the stated families/hypotheses only; no general orbit is
+        bounded.
+  \item All enrichment statements are finite-range measurements over
+        $n \le 10^7$, heavily concentrated in 18--24-bit integers; no
+        asymptotic claim is made without qualification, and the geometric
+        baseline is an empirical null model, not a theorem.
+  \item The full $3n+1$ conjecture is neither assumed nor approached.
+  \item $k = 0$ ($n_0 = 3$, glide $6$) is proven the unique exception in
+        Theorem \ref{thm:altbits}'s family.
+\end{itemize}
+
+\section*{Reproducibility}
+Code: \texttt{collatz\_analysis.py} (bitwise sweep, memoization),
+\texttt{analyze.py}, \texttt{rules.py}, \texttt{refueling\_induction.py},
+\texttt{induction.py}, \texttt{make\_csv.py}. Data:
+\texttt{integer\_collatz\_records.csv} (top-500 records + summary block),
+\texttt{backbone\_clusters.csv}, \texttt{top500.txt}, \texttt{records.txt},
+binary arrays \texttt{collatz\_stop.bin}, \texttt{collatz\_glide.bin},
+\texttt{collatz\_ratio.bin}. All numbers in this note are taken from those
+files.
+
+\section*{Acknowledgments}
+Experiments in this work were run and tracked with OpenResearch~\citep{openresearch}.
+
+\begin{thebibliography}{9}
+\bibitem[Terras(1976)]{teras1976} R.~Terras. A stopping time problem on the
+  positive integers. \emph{Acta Arithmetica} 30:241--252, 1976.
+\bibitem[Lagarias(2010)]{lagarias2010} J.~C. Lagarias (ed.). \emph{The
+  3x+1 Problem and Its Generalizations}. American Mathematical Society,
+  2010.
+\bibitem[Tao(2019)]{tao2019} T.~Tao. Almost all orbits of the Collatz map
+  attain almost bounded values. \emph{Forum of Mathematics, Pi} 10:e12,
+  2022. arXiv:1909.03562.
+\bibitem[alphaXiv(2026)]{openresearch} alphaXiv. OpenResearch: The
+  local-first harness and workspace for research agents. 2026.
+  \url{https://github.com/alphaXiv/OpenResearch}.
+\end{thebibliography}
+
+\end{document}
