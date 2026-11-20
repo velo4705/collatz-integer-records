@@ -1,5 +1,7 @@
 # collatz-integer-records
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24397999.svg)](https://doi.org/10.5281/zenodo.24397999)
+
 Empirical study of the integer Collatz map $T(n) = n/2$ (even), $3n+1$ (odd)
 for $1 \le n \le 10{,}000{,}000$ — no claim about the full $3n+1$ conjecture.
 Deliverables: a 500-row record table + LaTeX research note with exact
